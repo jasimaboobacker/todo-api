@@ -1,5 +1,7 @@
 var express = require('express');
 var bodyParser = require('body-parser');
+var _ = require('underscore');
+
 var app = express();
 var PORT = process.env.PORT||3000;
 var todos = [];
@@ -22,11 +24,7 @@ app.get('/todos/:id',function(req,res){
 	var todosId = parseInt(req.params.id,10);
 	var matchedTodo;
 
-	todos.forEach(function(todo){
-		if(todosId ===todo.id){
-			matchedTodo = todo;
-		}
-	});
+	matchedTodo = _.findWhere(todos,{id:todosId});
 
 	if(matchedTodo){
 		res.json(matchedTodo);
@@ -37,17 +35,63 @@ app.get('/todos/:id',function(req,res){
 
 //POST
 app.post('/todos',function(req,res){
-	
-	var todo = req.body;
+	var todo =_.pick(req.body, 'description', 'completed');
+	if(!_.isBoolean(todo.completed)|| !_.isString(todo.description) || todo.description.trim().length === 0){
+		return res.status(404).send();
+	}
 	todo.id = todoNextId++;
+	todo.description = todo.description.trim();
 	todos.push(todo);
 	console.log(todos);
-	var body = req.body;
-	res.json(body);
+	res.json(todo);
+});
 
+app.delete('/todos/:id',function(req,res){
 
+	var todosId = parseInt(req.params.id,10);
+	var matchedTodo;
+
+	matchedTodo = _.findWhere(todos,{id:todosId});
+	if(matchedTodo){
+		todos = _.without(todos,matchedTodo);
+		res.json(matchedTodo);
+
+	}else{
+		res.status(404).send();
+	}
+});
+
+app.put('/todos/:id',function(req,res){
+	var todo =_.pick(req.body, 'description', 'completed');
+	var validAttributes = {};
+	var todosId = parseInt(req.params.id,10);
+	var matchedTodo = _.findWhere(todos,{id:todosId});
+
+	if(!matchedTodo){
+		return res.status(404).send();
+	}
+
+	if(todo.hasOwnProperty('completed') && _.isBoolean(todo.completed)){
+		validAttributes.completed = todo.completed;
+	}else if(todo.hasOwnProperty('completed')){
+		return res.status(400).send();
+	}else{
+
+	}
+
+	if(todo.hasOwnProperty('description') && _.isString(todo.description) && todo.description.trim().length > 0){
+		validAttributes.description = todo.description;
+	}else if(todo.hasOwnProperty('description')){
+		return res.status(400).send();
+	}else{
+
+	}
+	
+	_.extend(matchedTodo,validAttributes);
+	res.json(matchedTodo);
 
 });
+
 
 app.listen(PORT,function(){
 	console.log('Server Listening to port : '+PORT);
